@@ -1,42 +1,43 @@
 pipeline {
     agent any
-    
+
     environment {
-        DOCKER_HUB_REPO = "shivammitra/flask-hello-world"
-        CONTAINER_NAME = "flask-hello-world"
-        DOCKERHUB_CREDENTIALS=credentials('dockerhub-credentials')
+        SPARK_HOME = '/home/hr295/spark'
+        SPARK_FILE_PATH = '/home/hr295/spark_files/read_and_write_to_psql1.py'
+        SPARK_SERVER = '192.168.1.77' // Remote server IP
     }
-    
+
     stages {
-        /* We do not need a stage for checkout here since it is done by default when using "Pipeline script from SCM" option. */
-        
-        stage('Build') {
+        stage('Run Spark Job on Remote Server') {
             steps {
-                echo 'Building..'
-                sh 'docker image build -t $DOCKER_HUB_REPO:latest .'
+                script {
+                    // Using SSH to submit the Spark job remotely
+                    sshagent(['spark-server-ssh-credential-id']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
+                        set -e  # Exit immediately if a command fails
+                        echo "Starting Spark job on remote server..."
+                        ${SPARK_HOME}/bin/spark-submit \\
+                            --master local[*] \\
+                            --driver-memory 4g \\
+                            --executor-memory 4g \\
+                            ${SPARK_FILE_PATH}
+                        echo "Spark job completed successfully."
+                        EOF
+                        """
+                    }
+                }
             }
         }
-        stage('Test') {
-            steps {
-                echo 'Testing..'
-                sh 'docker stop $CONTAINER_NAME || true'
-                sh 'docker rm $CONTAINER_NAME || true'
-                sh 'docker run --name $CONTAINER_NAME $DOCKER_HUB_REPO /bin/bash -c "pytest test.py && flake8"'
-            }
+    }
+
+    post {
+        success {
+            echo "Spark job executed successfully on remote server."
         }
-        stage('Push') {
-            steps {
-                echo 'Pushing image..'
-                sh 'echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin'
-                sh 'docker push $DOCKER_HUB_REPO:latest'
-            }
-        }
-        stage('Deploy') {
-            steps {
-                echo 'Deploying....'
-                sh 'minikube kubectl -- apply -f deployment.yaml'
-                sh 'minikube kubectl -- apply -f service.yaml'
-            }
+        failure {
+            echo "Failed to execute Spark job on remote server."
         }
     }
 }
+
