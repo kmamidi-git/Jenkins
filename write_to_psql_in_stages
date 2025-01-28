@@ -1,0 +1,98 @@
+pipeline {
+    agent any
+
+    environment {
+        SPARK_HOME = '/home/hr295/spark'
+        SPARK_FILE_PATH = '/home/hr295/spark_files/read_and_write_to_psql1.py'
+        SPARK_SERVER = '192.168.1.77' // Remote server IP
+        JDBC_JAR_PATH = '/home/hr295/spark/jars/postgresql-42.6.0.jar'
+        CSV_FILE_PATH = '/home/hr295/reporter_dt.csv'
+        PG_USER = 'postgres' // PostgreSQL Username
+        PG_PASSWORD = 'access' // PostgreSQL Password
+        PG_URL = 'jdbc:postgresql://192.168.1.77:5432/sample_database'
+    }
+
+    stages {
+        stage('Connect to Remote Server') {
+            steps {
+                script {
+                    sshagent(['spark-server-ssh-credential-id']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
+                        echo "Connected to Spark server at ${SPARK_SERVER}."
+                        exit
+                        EOF
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Verify CSV and JAR Availability') {
+            steps {
+                script {
+                    sshagent(['spark-server-ssh-credential-id']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
+                        if [ -f "${CSV_FILE_PATH}" ] && [ -f "${JDBC_JAR_PATH}" ]; then
+                            echo "Required files are available."
+                        else
+                            echo "Error: CSV or JDBC JAR file not found." && exit 1
+                        fi
+                        exit
+                        EOF
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Submit Spark Job') {
+            steps {
+                script {
+                    sshagent(['spark-server-ssh-credential-id']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
+                        set -e
+                        echo "Starting Spark job on remote server..."
+                        ${SPARK_HOME}/bin/spark-submit \\
+                            --master local[*] \\
+                            --driver-memory 4g \\
+                            --executor-memory 4g \\
+                            --jars ${JDBC_JAR_PATH} \\
+                            ${SPARK_FILE_PATH}
+                        echo "Spark job completed successfully."
+                        exit
+                        EOF
+                        """
+                    }
+                }
+            }
+        }
+
+        stage('Verify PostgreSQL Table Update') {
+            steps {
+                script {
+                    sshagent(['spark-server-ssh-credential-id']) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
+                        echo "Checking PostgreSQL table contents..."
+                        PGPASSWORD="${PG_PASSWORD}" psql -U ${PG_USER} -h 192.168.1.77 -d sample_database -c "SELECT * FROM updated_reporter_dt2 LIMIT 10;"
+                        exit
+                        EOF
+                        """
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Spark job executed successfully on remote server and database updated."
+        }
+        failure {
+            echo "Spark job execution or table update failed."
+        }
+    }
+}
