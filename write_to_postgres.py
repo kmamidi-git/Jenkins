@@ -1,9 +1,9 @@
-pipeline {
+\pipeline {
     agent any
 
     environment {
         SPARK_HOME = '/home/hr295/spark'
-        SPARK_SCRIPT_PATH = '/home/hr295/spark_files/write_to_postgres.py' // Updated path
+        SPARK_SCRIPT_PATH = '/home/hr295/spark_files/write_to_postgres.py' 
         SPARK_SERVER = '192.168.1.77'
         JDBC_JAR_PATH = '/home/hr295/spark/jars/postgresql-42.6.0.jar'
     }
