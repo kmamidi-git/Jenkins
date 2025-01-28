@@ -3,7 +3,7 @@
 
     environment {
         SPARK_HOME = '/home/hr295/spark'
-        SPARK_SCRIPT_PATH = '/home/hr295/spark_files/write_to_postgres.py' 
+        SPARK_SCRIPT_PATH = '/home/hr295/spark_files/read_and_write_to_psql1.py' 
         SPARK_SERVER = '192.168.1.77'
         JDBC_JAR_PATH = '/home/hr295/spark/jars/postgresql-42.6.0.jar'
     }
