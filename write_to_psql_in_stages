@@ -18,7 +18,7 @@ pipeline {
                 script {
                     sshagent(['spark-server-ssh-credential-id']) {
                         sh """
-                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
+                        ssh -o StrictHostKeyChecking=yes hr295@${SPARK_SERVER} << EOF
                         echo "Connected to Spark server at ${SPARK_SERVER}."
                         exit
                         EOF
