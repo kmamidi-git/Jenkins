@@ -11,10 +11,9 @@ pipeline {
         stage('Run Spark Job on Remote Server') {
             steps {
                 script {
-                    // Using SSH to submit the Spark job remotely
                     sshagent(['spark-server-ssh-credential-id']) {
                         sh """
-                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << 'EOF'
+                        ssh -o StrictHostKeyChecking=no hr295@${SPARK_SERVER} << EOF
                         set -e  # Exit immediately if a command fails
                         echo "Starting Spark job on remote server..."
                         ${SPARK_HOME}/bin/spark-submit \\
@@ -23,6 +22,7 @@ pipeline {
                             --executor-memory 4g \\
                             ${SPARK_FILE_PATH}
                         echo "Spark job completed successfully."
+                        exit
                         EOF
                         """
                     }
