@@ -35,9 +35,6 @@ pipeline {
         success {
             echo "Spark job executed successfully on remote server."
         }
-        failure {
-            echo "Failed to execute Spark job on remote server."
-        }
     }
 }
 
